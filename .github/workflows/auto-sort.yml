@@ -1,0 +1,46 @@
+name: Auto-Sort LeetCode Problems
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  sort-problems:
+    runs-on: windows-latest
+    # Add these lines to give the token write access to push changes
+    permissions:
+      contents: write
+      
+    if: "!contains(github.event.head_commit.message, 'Auto-sort problems')"
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Sort folders by difficulty
+        run: |
+          mkdir -p Easy Medium Hard
+          for dir in */; do
+            dir=${dir%/}
+            if [[ "$dir" == "Easy" || "$dir" == "Medium" || "$dir" == "Hard" || "$dir" == .* ]]; then
+              continue
+            fi
+            if [[ -f "$dir/README.md" ]]; then
+              if head -n 15 "$dir/README.md" | grep -iqE "<h2>.*Easy.*</h2>|<h3>.*Easy.*</h3>|>Easy<"; then
+                mv "$dir" Easy/
+              elif head -n 15 "$dir/README.md" | grep -iqE "<h2>.*Medium.*</h2>|<h3>.*Medium.*</h3>|>Medium<"; then
+                mv "$dir" Medium/
+              elif head -n 15 "$dir/README.md" | grep -iqE "<h2>.*Hard.*</h2>|<h3>.*Hard.*</h3>|>Hard<"; then
+                mv "$dir" Hard/
+              fi
+            fi
+          done
+
+      - name: Commit and Push changes
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .
+          git diff --staged --quiet || git commit -m "Auto-sort problems by difficulty"
+          git push
